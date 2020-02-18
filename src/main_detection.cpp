@@ -39,11 +39,11 @@ int main(int argc, char *argv[])
             "{video v           |      | path to recorded video                                             }"
             "{model             |      | path to yml model                                                  }"
             "{mesh              |      | path to ply mesh                                                   }"
-            "{keypoints k       |2000  | number of keypoints to detect                                      }"
-            "{ratio r           |0.6   | threshold for ratio test                                           }"
-            "{iterations it     |1000   | RANSAC maximum iterations count                                    }"
-            "{error e           |6.0   | RANSAC reprojection error                                          }"
-            "{confidence c      |0.99  | RANSAC confidence                                                  }"
+            "{keypoints k       |500    | number of keypoints to detect                                      }"
+            "{ratio r           |0.7   | threshold for ratio test                                           }"
+            "{iterations it     |300   | RANSAC maximum iterations count                                    }"
+            "{error e           |8.0   | RANSAC reprojection error                                          }"
+            "{confidence c      |0.95  | RANSAC confidence                                                  }"
             "{inliers in        |0     | minimum inliers for Kalman update                                  }"
             "{method  pnp       |0     | PnP method: (0) ITERATIVE - (1) EPNP - (2) P3P - (3) DLS - (5) AP3P}"
             "{fast f            |true  | use of robust fast match                                           }"
@@ -55,26 +55,21 @@ int main(int argc, char *argv[])
     CommandLineParser parser(argc, argv, keys);
     string yml_read_path[2] = {"",""};
     string ply_read_path[2] = {"",""};
-    string video_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/test4.mp4");   // recorded video
-    yml_read_path[0] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box4.yml"); // 3dpts + descriptors
-    yml_read_path[1] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box5.yml"); // 3dpts + descriptors
-    ply_read_path[0] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box4.ply");         // mesh
-    ply_read_path[1] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box5.ply");         // mesh
- 
-    // Intrinsic camera parameters: UVC WEBCAM
-    double f = 55;                           // focal length in mm
-    double sx = 22.3, sy = 14.9;             // sensor size
-    double width = 640, height = 480;        // image size
+    string video_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/test.mp4");   // recorded video
+    yml_read_path[0] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box1.yml"); // 3dpts + descriptors
+    yml_read_path[1] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box2.yml"); // 3dpts + descriptors
+    ply_read_path[0] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box1.ply");         // mesh
+    ply_read_path[1] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box2.ply");         // mesh
 
     // double params_WEBCAM[] = { width*f/sx,   // fx
     //                            height*f/sy,  // fy
     //                            width/2,      // cx
     //                            height/2};    // cy
 
-	const double params_WEBCAM[] = {935.3664903,
-                              		942.19474179,
-                          			484.61132178,
-                              		366.5741777};
+	const double params_WEBCAM[] = {1.3923167100834285e+03,
+                              		1.3967840677779698e+03,
+                          			960,
+                              		540};
     
     // Some basic colors
     Scalar red(0, 0, 255);
@@ -83,14 +78,14 @@ int main(int argc, char *argv[])
     Scalar yellow(0,255,255);
 
     // Robust Matcher parameters
-    int numKeyPoints = 2000;      // number of detected keypoints
-    float ratioTest = 0.70f;      // ratio test
+    int numKeyPoints = 500;      // number of detected keypoints
+    float ratioTest = 0.7f;      // ratio test
     bool fast_match = true;       // fastRobustMatch() or robustMatch()
 
     // RANSAC parameters
-    int iterationsCount = 500;      // number of Ransac iterations.
-    float reprojectionError = 6.0;  // maximum allowed distance to consider it an inlier.
-    double confidence = 0.99;       // ransac successful confidence.
+    int iterationsCount = 300;      // number of Ransac iterations.
+    float reprojectionError = 8.0;  // maximum allowed distance to consider it an inlier.
+    double confidence = 0.95;       // ransac successful confidence.
 
     // Kalman Filter parameters
     int minInliersKalman = 30;    // Kalman threshold updating
@@ -169,10 +164,10 @@ int main(int argc, char *argv[])
     RobustMatcher rmatcher1;
     RobustMatcher rmatcher2;                                                     // instantiate RobustMatcher
 
-    Ptr<FeatureDetector> detector, descriptor;
-    createFeatures(featureName, numKeyPoints, detector, descriptor);
-    rmatcher1.setFeatureDetector(detector);                                      // set feature detector
-    rmatcher1.setDescriptorExtractor(descriptor);                                // set descriptor extractor
+    Ptr<FeatureDetector> detector1, descriptor1;
+    createFeatures(featureName, numKeyPoints, detector1, descriptor1);
+    rmatcher1.setFeatureDetector(detector1);                                      // set feature detector
+    rmatcher1.setDescriptorExtractor(descriptor1);                                // set descriptor extractor
     rmatcher1.setDescriptorMatcher(createMatcher(featureName, useFLANN));        // set matcher
     rmatcher1.setRatio(ratioTest); // set ratio test parameter
     if (!model1.get_trainingImagePath().empty())
@@ -181,10 +176,10 @@ int main(int argc, char *argv[])
         rmatcher1.setTrainingImage(trainingImg);
     }
     
-    //Ptr<FeatureDetector> detector, descriptor;
-    createFeatures(featureName, numKeyPoints, detector, descriptor);
-    rmatcher2.setFeatureDetector(detector);                                      // set feature detector
-    rmatcher2.setDescriptorExtractor(descriptor);                                // set descriptor extractor
+    Ptr<FeatureDetector> detector2, descriptor2;
+    createFeatures(featureName, numKeyPoints, detector2, descriptor2);
+    rmatcher2.setFeatureDetector(detector2);                                      // set feature detector
+    rmatcher2.setDescriptorExtractor(descriptor2);                                // set descriptor extractor
     rmatcher2.setDescriptorMatcher(createMatcher(featureName, useFLANN));        // set matcher
     rmatcher2.setRatio(ratioTest); // set ratio test parameter
     if (!model2.get_trainingImagePath().empty())
@@ -266,10 +261,10 @@ int main(int argc, char *argv[])
 
         frame_matching1 = rmatcher1.getImageMatching();
         frame_matching2 = rmatcher2.getImageMatching();
-        if (!frame_matching1.empty() & !frame_matching2.empty())
+        if (!frame_matching1.empty() || !frame_matching2.empty())
         {
-            // imshow("Keypoints matching object 1", frame_matching1);
-            // imshow("Keypoints matching object 2", frame_matching2);
+            //imshow("Keypoints matching object 1", frame_matching1);
+            //imshow("Keypoints matching object 2", frame_matching2);
         }
 
         // -- Step 2: Find out the 2D/3D correspondences
@@ -297,10 +292,10 @@ int main(int argc, char *argv[])
          }
 
         // Draw outliers
-        draw2DPoints(frame_vis, list_points2d_scene_match1, red);
+        //draw2DPoints(frame_vis, list_points2d_scene_match1, red);
         
         // Draw outliers
-        draw2DPoints(frame_vis, list_points2d_scene_match2, red);
+        //draw2DPoints(frame_vis, list_points2d_scene_match2, yellow);
 
         Mat inliers_idx1;
         vector<Point2f> list_points2d_inliers1;
@@ -414,7 +409,7 @@ int main(int argc, char *argv[])
         tm.stop();
 
         // calculate current FPS
-        double fps = 1.0 / tm.getTimeSec();
+        // double fps = 1.0 / tm.getTimeSec();
 
         // drawFPS(frame_vis, fps, yellow); // frame ratio
         double detection_ratio1 = ((double)inliers_idx1.rows/(double)good_matches1.size())*100;
@@ -428,7 +423,8 @@ int main(int argc, char *argv[])
         string inliers_str1 = IntToString(inliers_int1);
         string outliers_str1 = IntToString(outliers_int1);
         string n1 = IntToString((int)good_matches1.size());
-        string text = "Item 1 Found, Matching rate:";
+        string text = "***Item 1 Found***";
+        string text5 = "Confidence:";
         string text2 = "Inliers: " + inliers_str1 + " - Outliers: " + outliers_str1;
 
         
@@ -438,28 +434,38 @@ int main(int argc, char *argv[])
         string inliers_str2 = IntToString(inliers_int2);
         string outliers_str2 = IntToString(outliers_int2);
         string n2 = IntToString((int)good_matches2.size());
-        string text3 = "Item 2 Found, Matching rate:";
+        string text3 = "***Item 2 Found***";
+        string text6 = "Confidence:";
         string text4 = "Inliers: " + inliers_str2 + " - Outliers: " + outliers_str2;
 
-    	if( (detection_ratio1 + detection_ratio2) > 160){
-    		drawText(frame_vis, text, green);
-        	drawConfidence1(frame_vis, detection_ratio1, yellow);
-        	drawText3(frame_vis, text3, green);
-            drawConfidence2(frame_vis, detection_ratio2, yellow);
+  //   	if( (detection_ratio1 + detection_ratio2) > 150){
+  //   		drawText(frame_vis, text, green);
+  //       	drawConfidence1(frame_vis, detection_ratio1, yellow);
+  //       	drawText3(frame_vis, text3, green);
+  //           drawConfidence2(frame_vis, detection_ratio2, yellow);
+		// }
+    	if(detection_ratio1 != 100 && detection_ratio2 != 100){
+			if(detection_ratio1 > detection_ratio2){
+	        	drawText(frame_vis, text, blue);
+	        	drawText5(frame_vis, text5, blue);
+	        	drawConfidence1(frame_vis, detection_ratio1, yellow);
+	        // drawText2(frame_vis, text2, red);
+	        }
+
+	        else if(detection_ratio2 > 0){
+	        	drawText3(frame_vis, text3, red);
+	        	drawText6(frame_vis, text6, red);
+	            drawConfidence2(frame_vis, detection_ratio2, yellow);
+	        // drawText4(frame_vis, text4, red);
+			}
 		}
+		//cv2.WINDOW_NORMAL makes the output window resizealbe
+    	// namedWindow('Resized Window', WINDOW_NORMAL);
 
-		else if(detection_ratio1 > detection_ratio2){
-        	drawText(frame_vis, text, green);
-        	drawConfidence1(frame_vis, detection_ratio1, yellow);
-        // drawText2(frame_vis, text2, red);
-        }
+    	// //resize the window according to the screen resolution
+    	// resizeWindow('Resized Window', '500', '500');
 
-        else if(detection_ratio2 > 50){
-        	drawText3(frame_vis, text3, green);
-            drawConfidence2(frame_vis, detection_ratio2, yellow);
-        // drawText4(frame_vis, text4, red);
-		}
-
+    	// imshow("Resized Window", frame_vis);
         imshow("REAL TIME DEMO", frame_vis);
 
         if (!saveDirectory.empty())

@@ -30,10 +30,10 @@ const double width = 2592, height = 1944;
 //                                 width/2,      // cx
 //                                 height/2};    // cy
                                 
-const double params_CANON[] = {935.3664903,
-                              942.19474179,
-                              484.61132178,
-                              366.5741777};
+const double params_CANON[] = { 1.3923167100834285e+03,
+                                1.3967840677779698e+03,
+                                960,
+                                540};
 
 // Setup the points to register in the image
 // In the order of the *.ply file and starting at 1
@@ -93,15 +93,15 @@ int main(int argc, char *argv[])
             "{image i       |      | path to input image                                                }"
             "{model         |      | path to output yml model                                           }"
             "{mesh          |      | path to ply mesh                                                   }"
-            "{keypoints k   |2000  | number of keypoints to detect (only for ORB)                       }"
+            "{keypoints k   |10000  | number of keypoints to detect (only for ORB)                       }"
             "{feature       |ORB   | feature name (ORB, KAZE, AKAZE, BRISK, SIFT, SURF, BINBOOST, VGG)  }"
             ;
     CommandLineParser parser(argc, argv, keys);
 
-    string img_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box5.JPG");  // image to register
-    string ply_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box4.ply");          // object mesh
-    string write_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box5.yml");     // output file
-    int numKeyPoints = 5000;
+    string img_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box2.JPG");  // image to register
+    string ply_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box2.ply");          // object mesh
+    string write_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box2.yml");     // output file
+    int numKeyPoints = 10000;
     string featureName = "ORB";
 
     if (parser.has("help"))
