@@ -17,6 +17,7 @@ using namespace cv;
 using namespace std;
 
 /**  GLOBAL VARIABLES  **/
+int NUM_OF_BOXES = 8;
 
 // Boolean the know if the registration it's done
 bool end_registration = false;
@@ -25,16 +26,17 @@ bool end_registration = false;
 const double f = 45; // focal length in mm
 const double sx = 22.3, sy = 14.9;
 const double width = 2592, height = 1944;
-const double params_CANON[] = { width*f/sx,   // fx
-                                height*f/sy,  // fy
-                                width/2,      // cx
-                                height/2};    // cy
-                                
-                                
-//const double params_CANON[] = {234,
-//                               234,
-//                               215,
-//                               115};
+// LOGITECH2
+// const double params_CANON[] = { width*f/sx,   // fx
+//                                 height*f/sy,  // fy
+//                                 width/2,      // cx
+//                                 height/2};    // cy
+
+// LOGITECH1               
+const double params_CANON[] = { 1.28397223e+03,
+                                1.29943966e+03,
+                                9.66018414e+02,
+                                4.72880443e+02};
 
 // Setup the points to register in the image
 // In the order of the *.ply file and starting at 1
@@ -99,9 +101,9 @@ int main(int argc, char *argv[])
             ;
     CommandLineParser parser(argc, argv, keys);
 
-    string img_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/bottle1.JPG");  // image to register
-    string ply_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/bottle1.ply");          // object mesh
-    string write_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/bottle1.yml");     // output file
+    string img_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box7.JPG");  // image to register
+    string ply_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box7.ply");          // object mesh
+    string write_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box7.yml");     // output file
     int numKeyPoints = 2000;
     string featureName = "ORB";
 
