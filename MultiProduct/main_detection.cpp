@@ -19,6 +19,7 @@
 
 using namespace cv;
 using namespace std;
+int NUM_OF_BOXES = 2;
 
 /**  Functions headers  **/
 void help();
@@ -40,12 +41,12 @@ int main(int argc, char *argv[])
             "{model             |      | path to yml model                                                  }"
             "{mesh              |      | path to ply mesh                                                   }"
             "{keypoints k       |2000  | number of keypoints to detect                                      }"
-            "{ratio r           |0.7   | threshold for ratio test                                           }"
-            "{iterations it     |500   | RANSAC maximum iterations count                                    }"
-            "{error e           |6.0   | RANSAC reprojection error                                          }"
+            "{ratio r           |0.9   | threshold for ratio test                                           }"
+            "{iterations it     |300   | RANSAC maximum iterations count                                    }"
+            "{error e           |8.0   | RANSAC reprojection error                                          }"
             "{confidence c      |0.99  | RANSAC confidence                                                  }"
-            "{inliers in        |30    | minimum inliers for Kalman update                                  }"
-            "{method  pnp       |0     | PnP method: (0) ITERATIVE - (1) EPNP - (2) P3P - (3) DLS - (5) AP3P}"
+            "{inliers in        |0     | minimum inliers for Kalman update                                  }"
+            "{method  pnp       |1     | PnP method: (0) ITERATIVE - (1) EPNP - (2) P3P - (3) DLS - (5) AP3P}"
             "{fast f            |true  | use of robust fast match                                           }"
             "{feature           |ORB   | feature name (ORB, KAZE, AKAZE, BRISK, SIFT, SURF, BINBOOST, VGG)  }"
             "{FLANN             |false | use FLANN library for descriptors matching                         }"
@@ -53,28 +54,32 @@ int main(int argc, char *argv[])
             "{displayFiltered   |false | display filtered pose (from Kalman filter)                         }"
             ;
     CommandLineParser parser(argc, argv, keys);
-    string yml_read_path[2] = {"",""};
-    string ply_read_path[2] = {"",""};
-    string video_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/test.mp4");   // recorded video
-    yml_read_path[0] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/cookies_ORB1.yml"); // 3dpts + descriptors
-    yml_read_path[1] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/cookies_ORB2.yml"); // 3dpts + descriptors
-    ply_read_path[0] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box1.ply");         // mesh
-    ply_read_path[1] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box2.ply");         // mesh
- 
-    // Intrinsic camera parameters: UVC WEBCAM
-    double f = 55;                           // focal length in mm
-    double sx = 22.3, sy = 14.9;             // sensor size
-    double width = 640, height = 480;        // image size
+    string yml_read_path[NUM_OF_BOXES] = {"",""};
+    string ply_read_path[NUM_OF_BOXES] = {"",""};
+    string video_read_path = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/2.mkv");   // recorded video
+    
+    for(int i=0; i< NUM_OF_BOXES; i++){
+        yml_read_path[i] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box" + IntToString(i) + ".yml"); // 3dpts + descriptors
+        ply_read_path[i] = samples::findFile("samples/cpp/tutorial_code/calib3d/real_time_pose_estimation/Data/box"+ IntToString(i) + ".ply");  // mesh
+    }
+    
+    // LOGITECH2
+	// const double params_WEBCAM[] = {1.3923167100834285e+03,
+ 	//                              	1.3967840677779698e+03,
+ 	//                          		960,
+ 	// 									540};            
+    // 
+ 	// LOGITECH1
+    // const double params_WEBCAM[] = { 1.28397223e+03,
+    //                             1.29943966e+03,
+    //                             9.66018414e+02,
+    //                             4.72880443e+02};
 
-    double params_WEBCAM[] = { width*f/sx,   // fx
-                               height*f/sy,  // fy
-                               width/2,      // cx
-                               height/2};    // cy
+    const double params_WEBCAM[] = {1.34309842e+03,
+    								1.34579072e+03,
+    								8.01983476e+02,
+    								5.84303298e+02};
 
-    const double params_CANON[] = {234,
-                                   234,
-                                   215,
-                                   115};
     // Some basic colors
     Scalar red(0, 0, 255);
     Scalar green(0,255,0);
@@ -83,19 +88,19 @@ int main(int argc, char *argv[])
 
     // Robust Matcher parameters
     int numKeyPoints = 2000;      // number of detected keypoints
-    float ratioTest = 0.70f;      // ratio test
-    bool fast_match = true;       // fastRobustMatch() or robustMatch()
+    float ratioTest = 0.9f;      // ratio test
+    bool fast_match = true;      // fastRobustMatch() or robustMatch()
 
     // RANSAC parameters
-    int iterationsCount = 500;      // number of Ransac iterations.
-    float reprojectionError = 6.0;  // maximum allowed distance to consider it an inlier.
+    int iterationsCount = 300;      // number of Ransac iterations.
+    float reprojectionError = 12.0;  // maximum allowed distance to consider it an inlier.
     double confidence = 0.99;       // ransac successful confidence.
 
     // Kalman Filter parameters
     int minInliersKalman = 30;    // Kalman threshold updating
 
     // PnP parameters
-    int pnpMethod = SOLVEPNP_ITERATIVE;
+    int pnpMethod = SOLVEPNP_EPNP;
     string featureName = "ORB";
     bool useFLANN = false;
 
@@ -113,85 +118,52 @@ int main(int argc, char *argv[])
     }
     else
     {
-        video_read_path = parser.get<string>("video").size() > 0 ? parser.get<string>("video") : video_read_path;
-        yml_read_path[0] = parser.get<string>("model").size() > 0 ? parser.get<string>("model") : yml_read_path[0];
-        ply_read_path[0] = parser.get<string>("mesh").size() > 0 ? parser.get<string>("mesh") : ply_read_path[0];
-        yml_read_path[1] = parser.get<string>("model").size() > 0 ? parser.get<string>("model") : yml_read_path[1];
-        ply_read_path[1] = parser.get<string>("mesh").size() > 0 ? parser.get<string>("mesh") : ply_read_path[1];
-        numKeyPoints = parser.has("keypoints") ? parser.get<int>("keypoints") : numKeyPoints;
-        ratioTest = parser.has("ratio") ? parser.get<float>("ratio") : ratioTest;
-        fast_match = parser.has("fast") ? parser.get<bool>("fast") : fast_match;
-        iterationsCount = parser.has("iterations") ? parser.get<int>("iterations") : iterationsCount;
-        reprojectionError = parser.has("error") ? parser.get<float>("error") : reprojectionError;
-        confidence = parser.has("confidence") ? parser.get<float>("confidence") : confidence;
-        minInliersKalman = parser.has("inliers") ? parser.get<int>("inliers") : minInliersKalman;
-        pnpMethod = parser.has("method") ? parser.get<int>("method") : pnpMethod;
-        featureName = parser.has("feature") ? parser.get<string>("feature") : featureName;
-        useFLANN = parser.has("FLANN") ? parser.get<bool>("FLANN") : useFLANN;
-        saveDirectory = parser.has("save") ? parser.get<string>("save") : saveDirectory;
-        displayFilteredPose = parser.has("displayFiltered") ? parser.get<bool>("displayFiltered") : displayFilteredPose;
+        for(int i=0; i< NUM_OF_BOXES; i++){
+            video_read_path = parser.get<string>("video").size() > 0 ? parser.get<string>("video") : video_read_path;
+            yml_read_path[i] = parser.get<string>("model").size() > 0 ? parser.get<string>("model") : yml_read_path[i];
+            ply_read_path[i] = parser.get<string>("mesh").size() > 0 ? parser.get<string>("mesh") : ply_read_path[i];
+            numKeyPoints = parser.has("keypoints") ? parser.get<int>("keypoints") : numKeyPoints;
+            ratioTest = parser.has("ratio") ? parser.get<float>("ratio") : ratioTest;
+            fast_match = parser.has("fast") ? parser.get<bool>("fast") : fast_match;
+            iterationsCount = parser.has("iterations") ? parser.get<int>("iterations") : iterationsCount;
+            reprojectionError = parser.has("error") ? parser.get<float>("error") : reprojectionError;
+            confidence = parser.has("confidence") ? parser.get<float>("confidence") : confidence;
+            minInliersKalman = parser.has("inliers") ? parser.get<int>("inliers") : minInliersKalman;
+            pnpMethod = parser.has("method") ? parser.get<int>("method") : pnpMethod;
+            featureName = parser.has("feature") ? parser.get<string>("feature") : featureName;
+            useFLANN = parser.has("FLANN") ? parser.get<bool>("FLANN") : useFLANN;
+            saveDirectory = parser.has("save") ? parser.get<string>("save") : saveDirectory;
+            displayFilteredPose = parser.has("displayFiltered") ? parser.get<bool>("displayFiltered") : displayFilteredPose;
+        }
     }
 
-    std::cout << "Video: " << video_read_path << std::endl;
-    std::cout << "Training data1: " << yml_read_path[0] << std::endl;
-    std::cout << "CAD model1: " << ply_read_path[0] << std::endl;
-    std::cout << "Training data2: " << yml_read_path[1] << std::endl;
-    std::cout << "CAD model2: " << ply_read_path[1] << std::endl;
-    std::cout << "Ratio test threshold: " << ratioTest << std::endl;
-    std::cout << "Fast match(no symmetry test)?: " << fast_match << std::endl;
-    std::cout << "RANSAC number of iterations: " << iterationsCount << std::endl;
-    std::cout << "RANSAC reprojection error: " << reprojectionError << std::endl;
-    std::cout << "RANSAC confidence threshold: " << confidence << std::endl;
-    std::cout << "Kalman number of inliers: " << minInliersKalman << std::endl;
-    std::cout << "PnP method: " << pnpMethod << std::endl;
-    std::cout << "Feature: " << featureName << std::endl;
-    std::cout << "Number of keypoints for ORB: " << numKeyPoints << std::endl;
-    std::cout << "Use FLANN-based matching? " << useFLANN << std::endl;
-    std::cout << "Save directory: " << saveDirectory << std::endl;
-    std::cout << "Display filtered pose from Kalman filter? " << displayFilteredPose << std::endl;
 
     PnPProblem pnp_detection(params_WEBCAM);
     PnPProblem pnp_detection_est(params_WEBCAM);
 
-    Model model1;               // instantiate Model object
-    model1.load(yml_read_path[0]); // load a 3D textured object model
-
-    Mesh mesh1;                 // instantiate Mesh object
-    mesh1.load(ply_read_path[0]);  // load an object mesh
-
-    Model model2;               // instantiate Model object
-    model2.load(yml_read_path[1]); // load a 3D textured object model
-
-    Mesh mesh2;                 // instantiate Mesh object
-    mesh2.load(ply_read_path[1]);  // load an object mesh
-
-    RobustMatcher rmatcher1;
-    RobustMatcher rmatcher2;                                                     // instantiate RobustMatcher
-
-    Ptr<FeatureDetector> detector, descriptor;
-    createFeatures(featureName, numKeyPoints, detector, descriptor);
-    rmatcher1.setFeatureDetector(detector);                                      // set feature detector
-    rmatcher1.setDescriptorExtractor(descriptor);                                // set descriptor extractor
-    rmatcher1.setDescriptorMatcher(createMatcher(featureName, useFLANN));        // set matcher
-    rmatcher1.setRatio(ratioTest); // set ratio test parameter
-    if (!model1.get_trainingImagePath().empty())
-    {
-        Mat trainingImg = imread(model1.get_trainingImagePath());
-        rmatcher1.setTrainingImage(trainingImg);
-    }
+    Model models[NUM_OF_BOXES]; // instantiate Model object
+    Mesh meshes [NUM_OF_BOXES]; // instantiate Mesh object
+    RobustMatcher rmatcher[NUM_OF_BOXES];
     
-    //Ptr<FeatureDetector> detector, descriptor;
-    createFeatures(featureName, numKeyPoints, detector, descriptor);
-    rmatcher2.setFeatureDetector(detector);                                      // set feature detector
-    rmatcher2.setDescriptorExtractor(descriptor);                                // set descriptor extractor
-    rmatcher2.setDescriptorMatcher(createMatcher(featureName, useFLANN));        // set matcher
-    rmatcher2.setRatio(ratioTest); // set ratio test parameter
-    if (!model2.get_trainingImagePath().empty())
-    {
-        Mat trainingImg = imread(model2.get_trainingImagePath());
-        rmatcher2.setTrainingImage(trainingImg);
+    for(int i=0; i< NUM_OF_BOXES; i++){
+        models[i].load(yml_read_path[i]);  // load a 3D textured object model
+        meshes[i].load(ply_read_path[i]);  // load an object mesh
     }
-    
+
+    Ptr<FeatureDetector> detector[NUM_OF_BOXES], descriptor[NUM_OF_BOXES];
+    for(int i=0; i< NUM_OF_BOXES; i++){
+        createFeatures(featureName, numKeyPoints, detector[i], descriptor[i]);
+        rmatcher[i].setFeatureDetector(detector[i]);                                // set feature detector
+        rmatcher[i].setDescriptorExtractor(descriptor[i]);                          // set descriptor extractor
+        rmatcher[i].setDescriptorMatcher(createMatcher(featureName, useFLANN));     // set matcher
+        rmatcher[i].setRatio(ratioTest);                                            // set ratio test parameter
+        if (!models[i].get_trainingImagePath().empty())
+        {
+            Mat trainingImg = imread(models[i].get_trainingImagePath());
+            rmatcher[i].setTrainingImage(trainingImg);
+        }
+    }    
+
 
     KalmanFilter KF;             // instantiate Kalman Filter
     int nStates = 18;            // the number of states
@@ -203,15 +175,16 @@ int main(int argc, char *argv[])
     Mat measurements(nMeasurements, 1, CV_64FC1); measurements.setTo(Scalar(0));
     bool good_measurement = false;
 
-    // Get the MODEL 1 INFO
-    vector<Point3f> list_points3d_model1 = model1.get_points3d();  // list with model 3D coordinates
-    Mat descriptors_model1 = model1.get_descriptors();             // list with descriptors of each 3D coordinate
-    vector<KeyPoint> keypoints_model1 = model1.get_keypoints();
-    
-    // Get the MODEL 2 INFO
-    vector<Point3f> list_points3d_model2 = model2.get_points3d();  // list with model 3D coordinates
-    Mat descriptors_model2 = model2.get_descriptors();             // list with descriptors of each 3D coordinate
-    vector<KeyPoint> keypoints_model2 = model2.get_keypoints();
+	vector<Point3f> list_points3d_model[NUM_OF_BOXES];
+	Mat descriptors_model[NUM_OF_BOXES];
+	vector<KeyPoint> keypoints_model[NUM_OF_BOXES];
+
+    // Get the MODEL INFO
+    for(int i=0; i< NUM_OF_BOXES; i++){
+        list_points3d_model[i] = models[i].get_points3d();  // list with model 3D coordinates
+        descriptors_model[i] = models[i].get_descriptors();             // list with descriptors of each 3D coordinate
+        keypoints_model[i] = models[i].get_keypoints();
+    }
 
     // Create & Open Window
     namedWindow("REAL TIME DEMO", WINDOW_KEEPRATIO);
@@ -237,7 +210,7 @@ int main(int argc, char *argv[])
     // Measure elapsed time
     TickMeter tm;
 
-    Mat frame, frame_vis, frame_matching1, frame_matching2;
+    Mat frame, frame_vis, frame_matching[NUM_OF_BOXES];
     while(cap.read(frame) && (char)waitKey(30) != 27) // capture frame until ESC is pressed
     {
         tm.reset();
@@ -245,106 +218,87 @@ int main(int argc, char *argv[])
         frame_vis = frame.clone();    // refresh visualisation frame
 
         // -- Step 1: Robust matching between model descriptors and scene descriptors
-        vector<DMatch> good_matches1;       // to obtain the 3D points of the model
-        vector<KeyPoint> keypoints_scene1;  // to obtain the 2D points of the scene
-        
-        // -- Step 1: Robust matching between model descriptors and scene descriptors
-        vector<DMatch> good_matches2;       // to obtain the 3D points of the model
-        vector<KeyPoint> keypoints_scene2;  // to obtain the 2D points of the scene
+        vector<DMatch> good_matches[NUM_OF_BOXES];       // to obtain the 3D points of the model
+        vector<KeyPoint> keypoints_scene[NUM_OF_BOXES];  // to obtain the 2D points of the scene
 
-        if(fast_match)
-        {
-            rmatcher1.fastRobustMatch(frame, good_matches1, keypoints_scene1, descriptors_model1, keypoints_model1);
-            rmatcher2.fastRobustMatch(frame, good_matches2, keypoints_scene2, descriptors_model2, keypoints_model2);
-        }
-        else
-        {
-            rmatcher1.robustMatch(frame, good_matches1, keypoints_scene1, descriptors_model1, keypoints_model1);
-            rmatcher2.robustMatch(frame, good_matches2, keypoints_scene2, descriptors_model2, keypoints_model2);
-        }
+        for(int i=0;i< NUM_OF_BOXES; i++){
+            if(fast_match)
+            {
+                rmatcher[i].fastRobustMatch(frame, good_matches[i], keypoints_scene[i], descriptors_model[i], keypoints_model[i]);
+            }
+            else
+            {
+                rmatcher[i].robustMatch(frame, good_matches[i], keypoints_scene[i], descriptors_model[i], keypoints_model[i]);
+            }
 
-        frame_matching1 = rmatcher1.getImageMatching();
-        frame_matching2 = rmatcher2.getImageMatching();
-        if (!frame_matching1.empty() & !frame_matching2.empty())
-        {
-            imshow("Keypoints matching object 1", frame_matching1);
-            imshow("Keypoints matching object 2", frame_matching2);
+            frame_matching[i] = rmatcher[i].getImageMatching();
+
+            if (!frame_matching[i].empty())
+        		{
+            		//imshow("Product " + IntToString(i), frame_matching[i]);
+         		}
         }
 
         // -- Step 2: Find out the 2D/3D correspondences
-        vector<Point3f> list_points3d_model_match1; // container for the model 3D coordinates found in the scene
-        vector<Point2f> list_points2d_scene_match1; // container for the model 2D coordinates found in the scene
-        
-        // -- Step 2: Find out the 2D/3D correspondences
-        vector<Point3f> list_points3d_model_match2; // container for the model 3D coordinates found in the scene
-        vector<Point2f> list_points2d_scene_match2; // container for the model 2D coordinates found in the scene
+        vector<Point3f> list_points3d_model_match[NUM_OF_BOXES]; // container for the model 3D coordinates found in the scene
+        vector<Point2f> list_points2d_scene_match[NUM_OF_BOXES]; // container for the model 2D coordinates found in the scene
+        Point3f point3d_model[NUM_OF_BOXES];
+        Point2f point2d_scene[NUM_OF_BOXES];
 
-        for(unsigned int match_index = 0; match_index < good_matches1.size(); ++match_index)
-        {
-            Point3f point3d_model1 = list_points3d_model1[ good_matches1[match_index].trainIdx ];  // 3D point from model
-            Point2f point2d_scene1 = keypoints_scene1[ good_matches1[match_index].queryIdx ].pt; // 2D point from the scene
-            list_points3d_model_match1.push_back(point3d_model1);         // add 3D point
-            list_points2d_scene_match1.push_back(point2d_scene1);         // add 2D point
-         }
+        for(int i=0;i< NUM_OF_BOXES; i++){
+            for(unsigned int match_index = 0; match_index < good_matches[i].size(); ++match_index)
+            {
+                point3d_model[i] = list_points3d_model[i][ good_matches[i][match_index].trainIdx ];  // 3D point from model
+                point2d_scene[i] = keypoints_scene[i][ good_matches[i][match_index].queryIdx ].pt; // 2D point from the scene
+                list_points3d_model_match[i].push_back(point3d_model[i]);         // add 3D point
+                list_points2d_scene_match[i].push_back(point2d_scene[i]);         // add 2D point
+            }
          
-         for(unsigned int match_index = 0; match_index < good_matches2.size(); ++match_index)
-         {   
-            Point3f point3d_model2 = list_points3d_model2[ good_matches2[match_index].trainIdx ];  // 3D point from model
-            Point2f point2d_scene2 = keypoints_scene2[ good_matches2[match_index].queryIdx ].pt; // 2D point from the scene
-            list_points3d_model_match2.push_back(point3d_model2);         // add 3D point
-            list_points2d_scene_match2.push_back(point2d_scene2);         // add 2D point
-         }
 
-        // Draw outliers
-        draw2DPoints(frame_vis, list_points2d_scene_match1, red);
+	        // Draw outliers
+	        draw2DPoints(frame_vis, list_points2d_scene_match[i], red);
+	        
+	        // Draw outliers
+	        draw2DPoints(frame_vis, list_points2d_scene_match[i], yellow);
+        }
+
+        Mat inliers_idx[NUM_OF_BOXES];
+        vector<Point2f> list_points2d_inliers[NUM_OF_BOXES];
         
-        // Draw outliers
-        draw2DPoints(frame_vis, list_points2d_scene_match2, red);
-
-        Mat inliers_idx1;
-        vector<Point2f> list_points2d_inliers1;
-        
-        Mat inliers_idx2;
-        vector<Point2f> list_points2d_inliers2;
-
         // Instantiate estimated translation and rotation
         good_measurement = false;
 
-        if(good_matches1.size() >= 4 || good_matches2.size() >= 4) // OpenCV requires solvePnPRANSAC to minimally have 4 set of points
+        double detection_ratio[NUM_OF_BOXES];
+        int inliers_int[NUM_OF_BOXES];
+        int outliers_int[NUM_OF_BOXES];
+        string inliers_str[NUM_OF_BOXES];
+        string outliers_str[NUM_OF_BOXES];
+        //string n[NUM_OF_BOXES];
+        
+        for(int i=0; i<NUM_OF_BOXES; i++)
         {
             // -- Step 3: Estimate the pose using RANSAC approach
-            pnp_detection.estimatePoseRANSAC( list_points3d_model_match1, list_points2d_scene_match1,
-                                              pnpMethod, inliers_idx1,
+            if(good_matches[i].size() >= 4){
+            pnp_detection.estimatePoseRANSAC( list_points3d_model_match[i], list_points2d_scene_match[i],
+                                              pnpMethod, inliers_idx[i],
                                               iterationsCount, reprojectionError, confidence );
-                                              
-            pnp_detection.estimatePoseRANSAC( list_points3d_model_match2, list_points2d_scene_match2,
-                                              pnpMethod, inliers_idx2,
-                                              iterationsCount, reprojectionError, confidence );
-
-            // -- Step 4: Catch the inliers keypoints to draw
-            for(int inliers_index = 0; inliers_index < inliers_idx1.rows; ++inliers_index)
-            {
-                int n = inliers_idx1.at<int>(inliers_index);         // i-inlier
-                Point2f point2d = list_points2d_scene_match1[n];     // i-inlier point 2D
-                list_points2d_inliers1.push_back(point2d);           // add i-inlier to list
             }
             
             // -- Step 4: Catch the inliers keypoints to draw
-            for(int inliers_index = 0; inliers_index < inliers_idx2.rows; ++inliers_index)
+            for(int inliers_index = 0; inliers_index < inliers_idx[i].rows; ++inliers_index)
             {
-                int n = inliers_idx2.at<int>(inliers_index);         // i-inlier
-                Point2f point2d = list_points2d_scene_match2[n];     // i-inlier point 2D
-                list_points2d_inliers2.push_back(point2d);           // add i-inlier to list
+                int n = inliers_idx[i].at<int>(inliers_index);         // i-inlier
+                Point2f point2d = list_points2d_scene_match[i][n];     // i-inlier point 2D
+                list_points2d_inliers[i].push_back(point2d);           // add i-inlier to list
             }
-
+            
             // Draw inliers points 2D
-            draw2DPoints(frame_vis, list_points2d_inliers1, blue);
-            draw2DPoints(frame_vis, list_points2d_inliers2, blue);
+            draw2DPoints(frame_vis, list_points2d_inliers[i], blue);
 
             // -- Step 5: Kalman Filter
 
             // GOOD MEASUREMENT
-            if( inliers_idx1.rows >= minInliersKalman )
+            if( inliers_idx[i].rows >= minInliersKalman )
             {
                 // Get the measured translation
                 Mat translation_measured = pnp_detection.get_t_matrix();
@@ -357,18 +311,6 @@ int main(int argc, char *argv[])
                 good_measurement = true;
             }
             
-            if( inliers_idx2.rows >= minInliersKalman )
-            {
-                // Get the measured translation
-                Mat translation_measured = pnp_detection.get_t_matrix();
-
-                // Get the measured rotation
-                Mat rotation_measured = pnp_detection.get_R_matrix();
-
-                // fill the measurements vector
-                fillMeasurements(measurements, translation_measured, rotation_measured);
-                good_measurement = true;
-            }
 
             // update the Kalman filter with good measurements, otherwise with previous valid measurements
             Mat translation_estimated(3, 1, CV_64FC1);
@@ -378,86 +320,95 @@ int main(int argc, char *argv[])
 
             // -- Step 6: Set estimated projection matrix
             pnp_detection_est.set_P_matrix(rotation_estimated, translation_estimated);
-        }
+		
 
-        // -- Step X: Draw pose and coordinate frame
-        float l = 5;
-        vector<Point2f> pose_points2d;
-        if (!good_measurement || displayFilteredPose)
-        {
-            drawObjectMesh(frame_vis, &mesh1, &pnp_detection_est, yellow); // draw estimated pose
-            drawObjectMesh(frame_vis, &mesh2, &pnp_detection_est, yellow); // draw estimated pose
+	        // -- Step X: Draw pose and coordinate frame
+	        float l = 5;
+	        vector<Point2f> pose_points2d;
+	        if (!good_measurement || displayFilteredPose)
+	        {
+	            // drawObjectMesh(frame_vis, &mesh1, &pnp_detection_est, yellow); // draw estimated pose
+	            // drawObjectMesh(frame_vis, &mesh2, &pnp_detection_est, yellow); // draw estimated pose
 
-            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(0,0,0)));  // axis center
-            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(l,0,0)));  // axis x
-            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(0,l,0)));  // axis y
-            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(0,0,l)));  // axis z
-            draw3DCoordinateAxes(frame_vis, pose_points2d);           // draw axes
-        }
-        else
-        {
-            drawObjectMesh(frame_vis, &mesh1, &pnp_detection, green);  // draw current pose
-            drawObjectMesh(frame_vis, &mesh2, &pnp_detection, green);  // draw current pose
+	            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(0,0,0)));  // axis center
+	            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(l,0,0)));  // axis x
+	            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(0,l,0)));  // axis y
+	            pose_points2d.push_back(pnp_detection_est.backproject3DPoint(Point3f(0,0,l)));  // axis z
+	            // draw3DCoordinateAxes(frame_vis, pose_points2d);           // draw axes
+	        }
+	        else
+	        {
+	            // drawObjectMesh(frame_vis, &mesh1, &pnp_detection, green);  // draw current pose
+	            // drawObjectMesh(frame_vis, &mesh2, &pnp_detection, green);  // draw current pose
 
-            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(0,0,0)));  // axis center
-            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(l,0,0)));  // axis x
-            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(0,l,0)));  // axis y
-            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(0,0,l)));  // axis z
-            draw3DCoordinateAxes(frame_vis, pose_points2d);           // draw axes
-        }
+	            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(0,0,0)));  // axis center
+	            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(l,0,0)));  // axis x
+	            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(0,l,0)));  // axis y
+	            pose_points2d.push_back(pnp_detection.backproject3DPoint(Point3f(0,0,l)));  // axis z
+	            // draw3DCoordinateAxes(frame_vis, pose_points2d);           // draw axes
+	        }
 
-        // FRAME RATE
-        // see how much time has elapsed
-        tm.stop();
+	        // FRAME RATE
+	        // see how much time has elapsed
+	        tm.stop();
 
-        // calculate current FPS
-        double fps = 1.0 / tm.getTimeSec();
+	        // calculate current FPS
+	        // double fps = 1.0 / tm.getTimeSec();
 
-        drawFPS(frame_vis, fps, yellow); // frame ratio
-        double detection_ratio1 = ((double)inliers_idx1.rows/(double)good_matches1.size())*100;
-        drawConfidence(frame_vis, detection_ratio1, yellow);
-        double detection_ratio2 = ((double)inliers_idx2.rows/(double)good_matches2.size())*100;
-        drawConfidence(frame_vis, detection_ratio2, yellow);
+	        // drawFPS(frame_vis, fps, yellow); // frame ratio
+	        detection_ratio[i] = ((double)inliers_idx[i].rows/(double)good_matches[i].size())*100;
+	        
+	        // -- Step X: Draw some debugging text
+	        // Draw some debug text
+	        inliers_int[i] = inliers_idx[i].rows;
+	        outliers_int[i] = (int)good_matches[i].size() - inliers_int[i];
+	        inliers_str[i] = IntToString(inliers_int[i]);
+	        outliers_str[i] = IntToString(outliers_int[i]);
+	        //n[i] = IntToString((int)good_matches[i].size());
+	    }
+	    
+	    int max_detection_ratio = 0;
+	    int sum_inliers_num = 0;
+	    int sum_outliers_num = 0;
 
-        // -- Step X: Draw some debugging text
-        // Draw some debug text
-        int inliers_int1 = inliers_idx1.rows;
-        int outliers_int1 = (int)good_matches1.size() - inliers_int1;
-        string inliers_str1 = IntToString(inliers_int1);
-        string outliers_str1 = IntToString(outliers_int1);
-        string n1 = IntToString((int)good_matches1.size());
-        string text = "Found " + inliers_str1 + " of " + n1 + " matches";
-        string text2 = "Inliers: " + inliers_str1 + " - Outliers: " + outliers_str1;
+	    for(int i = 0; i < NUM_OF_BOXES; i++){
+	    	sum_inliers_num += inliers_int[i];
+	    	sum_outliers_num += outliers_int[i];
+	    	if(detection_ratio[i] == 100)
+	    		detection_ratio[i] = 0;
+	    	//cout << detection_ratio[i] << endl;
+	    }
 
-        drawText(frame_vis, text, green);
-        drawText2(frame_vis, text2, red);
-        
-        int inliers_int2 = inliers_idx2.rows;
-        int outliers_int2 = (int)good_matches2.size() - inliers_int2;
-        string inliers_str2 = IntToString(inliers_int2);
-        string outliers_str2 = IntToString(outliers_int2);
-        string n2 = IntToString((int)good_matches2.size());
-        string text3 = "Found " + inliers_str2 + " of " + n2 + " matches";
-        string text4 = "Inliers: " + inliers_str2 + " - Outliers: " + outliers_str2;
+	    max_detection_ratio = distance(detection_ratio, max_element(detection_ratio, detection_ratio + NUM_OF_BOXES));
+	    //sum_inliers_num = sum_element(inliers_int, inliers_int + NUM_OF_BOXES);
+	    //cout << "Index of max element: " << max_detection_ratio << endl;
 
-        drawText3(frame_vis, text3, green);
-        drawText4(frame_vis, text4, red);
+        string text = "Item " + IntToString(max_detection_ratio) + " found";
+        string text5 = "Confidence:";
+        //string text2 = "Inliers: " + inliers_str[i] + " - Outliers: " + outliers_str[i];
 
-        imshow("REAL TIME DEMO", frame_vis);
-
+    	// if(detection_ratio[max_detection_ratio] != 100 && sum_inliers_num > 10 && sum_outliers_num > 10){
+        if(true){
+        	// drawText(frame_vis, text, blue);
+        	drawText5(frame_vis, text5, blue);
+        	drawConfidence1(frame_vis, detection_ratio[max_detection_ratio], yellow);
+		}
+		
+		imshow("REAL TIME DEMO", frame_vis);
+	
         if (!saveDirectory.empty())
         {
-            const int widthSave = !frame_matching1.empty() ? frame_matching1.cols : frame_vis.cols;
-            const int heightSave = !frame_matching1.empty() ? frame_matching1.rows + frame_vis.rows : frame_vis.rows;
+            const int widthSave = !frame_matching[max_detection_ratio].empty() ? frame_matching[max_detection_ratio].cols : frame_vis.cols;
+            const int heightSave = !frame_matching[max_detection_ratio].empty() ? frame_matching[max_detection_ratio].rows + frame_vis.rows : frame_vis.rows;
             frameSave = Mat::zeros(heightSave, widthSave, CV_8UC3);
-            if (!frame_matching1.empty())
+            if (!frame_matching[max_detection_ratio].empty())
             {
                 int startX = (int)((widthSave - frame_vis.cols) / 2.0);
                 Mat roi = frameSave(Rect(startX, 0, frame_vis.cols, frame_vis.rows));
                 frame_vis.copyTo(roi);
 
-                roi = frameSave(Rect(0, frame_vis.rows, frame_matching1.cols, frame_matching1.rows));
-                frame_matching1.copyTo(roi);
+                roi = frameSave(Rect(0, frame_vis.rows, frame_matching[max_detection_ratio].cols, frame_matching[max_detection_ratio].rows));
+                frame_matching[max_detection_ratio].copyTo(roi);
             }
             else
             {

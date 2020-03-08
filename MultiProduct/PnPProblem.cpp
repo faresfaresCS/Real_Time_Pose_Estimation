@@ -7,25 +7,11 @@
 
 #include <iostream>
 #include <sstream>
-#include <string>
-#include <opencv2/calib3d/calib3d.hpp>
 
 #include "PnPProblem.h"
 #include "Mesh.h"
-//#include "mat.h"
-#include <vector>
-#include<fstream>
-#include <chrono>
-#include <thread>
 
 #include <opencv2/calib3d/calib3d.hpp>
-
-using namespace std;
-
-const string filepath_r = "OPnP_R.txt";
-const string filepath_t = "OPnP_t.txt";
-const string points_path = "3dpoints.txt";
-const string pixels_path = "2dpoints.txt";
 
 /* Functions for Möller-Trumbore intersection algorithm */
 static cv::Point3f CROSS(cv::Point3f v1, cv::Point3f v2)
@@ -54,13 +40,13 @@ static cv::Point3f SUB(cv::Point3f v1, cv::Point3f v2)
 /* End functions for Möller-Trumbore intersection algorithm */
 
 // Function to get the nearest 3D point to the Ray origin
-static cv::Point3f get_nearest_3D_point(vector<cv::Point3f> &points_list, cv::Point3f origin)
+static cv::Point3f get_nearest_3D_point(std::vector<cv::Point3f> &points_list, cv::Point3f origin)
 {
     cv::Point3f p1 = points_list[0];
     cv::Point3f p2 = points_list[1];
 
-    double d1 = sqrt( pow(p1.x-origin.x, 2) + pow(p1.y-origin.y, 2) + pow(p1.z-origin.z, 2) );
-    double d2 = sqrt( pow(p2.x-origin.x, 2) + pow(p2.y-origin.y, 2) + pow(p2.z-origin.z, 2) );
+    double d1 = std::sqrt( std::pow(p1.x-origin.x, 2) + std::pow(p1.y-origin.y, 2) + std::pow(p1.z-origin.z, 2) );
+    double d2 = std::sqrt( std::pow(p2.x-origin.x, 2) + std::pow(p2.y-origin.y, 2) + std::pow(p2.z-origin.z, 2) );
 
     if(d1 < d2)
     {
@@ -70,50 +56,6 @@ static cv::Point3f get_nearest_3D_point(vector<cv::Point3f> &points_list, cv::Po
     {
         return p2;
     }
-}
-
-
-cv::Mat ReadMatFromTxt(const string filename, int rows, int cols)
-{
-    double m;
-    char a;
-    cv::Mat out = cv::Mat::zeros(rows, cols, CV_64FC1);//Matrix to store values
-
-    ifstream fileStream(filename);
-    int cnt = 0;//index starts from 0
-    while (fileStream >> m)
-    {
-        int temprow = cnt / cols;
-        int tempcol = cnt % cols;
-        out.at<double>(temprow, tempcol) = m;
-        cnt++;
-        fileStream >> a;
-    }
-    return out;
-}
-
-
-void writeMatToFile(cv::Mat& m, const string filename)
-{
-    ofstream fout(filename);
-
-    if (!fout)
-    {
-        cout << "File Not Opened" << endl;  return;
-    }
-
-    for (int i = 0; i < m.rows; i++)
-    {
-        for (int j = 0; j < m.cols; j++)
-        {
-            fout << m.at<double>(i, j);
-            if(j < m.cols - 1)
-                fout << " ";
-        }
-        fout << endl;
-    }
-
-    fout.close();
 }
 
 // Custom constructor given the intrinsic camera parameters
@@ -141,7 +83,7 @@ void PnPProblem::set_P_matrix( const cv::Mat &R_matrix, const cv::Mat &t_matrix)
 {
     // Rotation-Translation Matrix Definition
     P_matrix_.at<double>(0,0) = R_matrix.at<double>(0,0);
-    P_matrix_.at<double>(0,1) = -R_matrix.at<double>(0,1);
+    P_matrix_.at<double>(0,1) = R_matrix.at<double>(0,1);
     P_matrix_.at<double>(0,2) = R_matrix.at<double>(0,2);
     P_matrix_.at<double>(1,0) = R_matrix.at<double>(1,0);
     P_matrix_.at<double>(1,1) = R_matrix.at<double>(1,1);
@@ -155,89 +97,59 @@ void PnPProblem::set_P_matrix( const cv::Mat &R_matrix, const cv::Mat &t_matrix)
 }
 
 // Estimate the pose given a list of 2D/3D correspondences and the method to use
-bool PnPProblem::estimatePose(const std::vector<cv::Point3f> &list_points3d,
-	const std::vector<cv::Point2f> &list_points2d,
-	int flags)
+bool PnPProblem::estimatePose( const std::vector<cv::Point3f> &list_points3d,
+                               const std::vector<cv::Point2f> &list_points2d,
+                               int flags)
 {
-	cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);
-	cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);
-	cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);
+    cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);
+    cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);
+    cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);
 
-	bool useExtrinsicGuess = false;
+    bool useExtrinsicGuess = false;
 
-	// Pose estimation
-	bool correspondence = cv::solvePnP(list_points3d, list_points2d, A_matrix_, distCoeffs, rvec, tvec,
-		useExtrinsicGuess, flags);
+    // Pose estimation
+    bool correspondence = cv::solvePnP( list_points3d, list_points2d, A_matrix_, distCoeffs, rvec, tvec,
+                                        useExtrinsicGuess, flags);
 
-	// Transforms Rotation Vector to Matrix
-	Rodrigues(rvec, R_matrix_);
-	t_matrix_ = tvec;
+    // Transforms Rotation Vector to Matrix
+    Rodrigues(rvec, R_matrix_);
+    t_matrix_ = tvec;
 
-	// Set projection matrix
-	this->set_P_matrix(R_matrix_, t_matrix_);
+    // Set projection matrix
+    this->set_P_matrix(R_matrix_, t_matrix_);
 
-	return correspondence;
+    return correspondence;
 }
 
 // Estimate the pose given a list of 2D/3D correspondences with RANSAC and the method to use
 
-void PnPProblem::estimatePoseRANSAC( const vector<cv::Point3f> &list_points3d, // list with model 3D coordinates
-                                     const vector<cv::Point2f> &list_points2d,     // list with scene 2D coordinates
+void PnPProblem::estimatePoseRANSAC( const std::vector<cv::Point3f> &list_points3d, // list with model 3D coordinates
+                                     const std::vector<cv::Point2f> &list_points2d,     // list with scene 2D coordinates
                                      int flags, cv::Mat &inliers, int iterationsCount,  // PnP method; inliers container
                                      float reprojectionError, double confidence )    // Ransac parameters
 {
     cv::Mat distCoeffs = cv::Mat::zeros(4, 1, CV_64FC1);  // vector of distortion coefficients
-    cv::Mat rvec = cv::Mat::zeros(3, 3, CV_64FC1);          // output rotation vector
+    cv::Mat rvec = cv::Mat::zeros(3, 1, CV_64FC1);          // output rotation vector
     cv::Mat tvec = cv::Mat::zeros(3, 1, CV_64FC1);    // output translation vector
 
     bool useExtrinsicGuess = false;   // if true the function uses the provided rvec and tvec values as
     // initial approximations of the rotation and translation vectors
 
-	cv::solvePnPRansac( list_points3d, list_points2d, A_matrix_, distCoeffs, rvec, tvec,
+    cv::solvePnPRansac( list_points3d, list_points2d, A_matrix_, distCoeffs, rvec, tvec,
                         useExtrinsicGuess, iterationsCount, reprojectionError, confidence,
                         inliers, flags );
 
-	///
-            int sizePoints = inliers.rows;
-            cout << list_points3d.size() << " " << sizePoints << endl;
-            cv::Mat matPoints = cv::Mat::zeros(sizePoints, 3, CV_64FC1);
-            cv::Mat matPixels = cv::Mat::zeros(sizePoints, 2, CV_64FC1);
-
-            for (int i = 0; i < sizePoints; i++) {
-                matPoints.at<double>(i, 0) = list_points3d[inliers.at<int>(i)].x;
-                matPoints.at<double>(i, 1) = list_points3d[inliers.at<int>(i)].y;
-                matPoints.at<double>(i, 2) = list_points3d[inliers.at<int>(i)].z;
-                matPixels.at<double>(i, 0) = list_points2d[inliers.at<int>(i)].x;
-                matPixels.at<double>(i, 1) = list_points2d[inliers.at<int>(i)].y;
-            }
-
-            writeMatToFile(matPoints, points_path);
-            writeMatToFile(matPixels, pixels_path);
-
-            
-            ofstream fout;
-
-            std::cout << "***********************************" << std::endl;
-            system("python3 run.py > /dev/null");
-            //Got R & t 
-            
-            rvec = ReadMatFromTxt(filepath_r, 3, 3);
-            tvec = ReadMatFromTxt(filepath_t, 3, 1);
-
-			R_matrix_ = rvec.t(); 				// converts Rotation Vector to Matrix
-		    t_matrix_ = tvec;           // set translation matrix
-
-		    cout << R_matrix_ << endl;
-		    cout << t_matrix_ << endl;
+    Rodrigues(rvec, R_matrix_); // converts Rotation Vector to Matrix
+    t_matrix_ = tvec;           // set translation matrix
 
     this->set_P_matrix(R_matrix_, t_matrix_); // set rotation-translation matrix
 
 }
 
 // Given the mesh, backproject the 3D points to 2D to verify the pose estimation
-vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
+std::vector<cv::Point2f> PnPProblem::verify_points(Mesh *mesh)
 {
-    vector<cv::Point2f> verified_points_2d;
+    std::vector<cv::Point2f> verified_points_2d;
     for( int i = 0; i < mesh->getNumVertices(); i++)
     {
         cv::Point3f point3d = mesh->getVertex(i);
@@ -274,7 +186,7 @@ cv::Point2f PnPProblem::backproject3DPoint(const cv::Point3f &point3d)
 bool PnPProblem::backproject2DPoint(const Mesh *mesh, const cv::Point2f &point2d, cv::Point3f &point3d)
 {
     // Triangles list of the object mesh
-    vector<vector<int> > triangles_list = mesh->getTrianglesList();
+    std::vector<std::vector<int> > triangles_list = mesh->getTrianglesList();
 
     double lambda = 8;
     double u = point2d.x;
@@ -303,7 +215,7 @@ bool PnPProblem::backproject2DPoint(const Mesh *mesh, const cv::Point2f &point2d
     Ray R((cv::Point3f)C_op, (cv::Point3f)ray);
 
     // A vector to store the intersections found
-    vector<cv::Point3f> intersections_list;
+    std::vector<cv::Point3f> intersections_list;
 
     // Loop for all the triangles and check the intersection
     for (unsigned int i = 0; i < triangles_list.size(); i++)
